@@ -8,13 +8,21 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Sync upstream
-      run: |
-        git config --global user.email "itsaquestion@gmail.com"
-        git config --global user.name "itsaquestion"
-        git remote add upstream https://github.com/enricoros/big-AGI.git
-        git fetch upstream
-        git merge upstream/main --no-commit --no-ff
-        git push
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # 确保获取所有历史记录
+
+      - name: Configure git
+        run: |
+          git config --global user.email "itsaquestion@gmail.com"
+          git config --global user.name "itsaquestion"
+
+      - name: Sync with Upstream
+        run: |
+          git remote add upstream https://github.com/enricoros/big-AGI.git
+          git fetch upstream
+          git checkout main  # 或者你的默认分支，比如'master'
+          git merge upstream/main  # 合并上游的更改
+          git push
+
