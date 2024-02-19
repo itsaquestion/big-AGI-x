@@ -1,6 +1,6 @@
 const BuildOptions = {
   // Future: Electron/Frontend-only builds
-  exportFrontend: false,
+  exportFrontend: !!process.env.EXPORT_FRONTEND,
 };
 
 /** @type {import('next').NextConfig} */
