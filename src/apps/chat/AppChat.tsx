@@ -26,7 +26,7 @@ import { useOptimaLayout, usePluggableOptimaLayout } from '~/common/layout/optim
 import { useUIPreferencesStore } from '~/common/state/store-ui';
 
 import type { ComposerOutputMultiPart } from './components/composer/composer.types';
-import { Beam } from './components/beam/Beam';
+import { BeamView } from './components/beam/BeamView';
 import { ChatDrawerMemo } from './components/ChatDrawer';
 import { ChatDropdowns } from './components/ChatDropdowns';
 import { ChatMessageList } from './components/ChatMessageList';
@@ -95,6 +95,10 @@ export function AppChat() {
     setFocusedPane,
   } = usePanesManager();
 
+  const chatHandlers = React.useMemo(() => chatPanes.map(pane => {
+    return pane.conversationId ? ConversationManager.getHandler(pane.conversationId) : null;
+  }), [chatPanes]);
+
   const {
     title: focusedChatTitle,
     isChatEmpty: isFocusedChatEmpty,
@@ -126,10 +130,6 @@ export function AppChat() {
   const isMultiConversationId = isMultiPane && new Set(chatPanes.map((pane) => pane.conversationId)).size >= 2;
   const willMulticast = isComposerMulticast && isMultiConversationId;
   const disableNewButton = isFocusedChatEmpty && !isMultiPane;
-
-  const chatHandlers = React.useMemo(() => chatPanes.map(pane => {
-    return pane.conversationId ? ConversationManager.getHandler(pane.conversationId) : null;
-  }), [chatPanes]);
 
   const setFocusedConversationId = React.useCallback((conversationId: DConversationId | null) => {
     conversationId && openConversationInFocusedPane(conversationId);
@@ -457,6 +457,7 @@ export function AppChat() {
 
   usePluggableOptimaLayout(drawerContent, barContent, menuItems, 'AppChat');
 
+
   return <>
 
     <PanelGroup
@@ -468,8 +469,8 @@ export function AppChat() {
         const _paneConversationId = pane.conversationId;
         const _paneChatHandler = chatHandlers[idx] ?? null;
         const _panesCount = chatPanes.length;
-        const _keyAndId = `chat-pane-${idx}-${_paneConversationId}`;
-        const _sepId = `sep-pane-${idx}-${_paneConversationId}`;
+        const _keyAndId = `chat-pane-${pane.paneId}`;
+        const _sepId = `sep-pane-${idx}`;
         return <React.Fragment key={_keyAndId}>
 
           <Panel
@@ -556,17 +557,21 @@ export function AppChat() {
             </ScrollToBottom>
 
             {/* Best-Of Mode */}
-            <Beam
-              conversationHandler={_paneChatHandler}
-              isMobile={isMobile}
-              sx={{
-                overflowY: 'auto',
-                backgroundColor: 'background.level2',
-                position: 'absolute',
-                inset: 0,
-                zIndex: 1, // stay on top of Chips :shrug:
-              }}
-            />
+            {!!_paneChatHandler && (
+              <BeamView
+                conversationHandler={_paneChatHandler}
+                isMobile={isMobile}
+                sx={{
+                  overflowY: 'auto',
+                  backgroundColor: 'background.level2',
+                  // bgcolor: `rgba(${theme.vars.palette.neutral.lightChannel} / 0.9)`,
+                  // backdropFilter: 'blur(6px)',
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 1, // stay on top of Chips :shrug:
+                }}
+              />
+            )}
 
           </Panel>
 
