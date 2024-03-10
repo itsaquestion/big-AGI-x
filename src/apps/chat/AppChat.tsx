@@ -13,7 +13,6 @@ import { useCapabilityTextToImage } from '~/modules/t2i/t2i.client';
 
 import { Brand } from '~/common/app.config';
 import { ConfirmationModal } from '~/common/components/ConfirmationModal';
-import { ConversationManager } from '~/common/chats/ConversationHandler';
 import { GlobalShortcutItem, ShortcutKeyName, useGlobalShortcuts } from '~/common/components/useGlobalShortcut';
 import { PanelResizeInset } from '~/common/components/panes/GoodPanelResizeHandler';
 import { addSnackbar, removeSnackbar } from '~/common/components/useSnackbarsStore';
@@ -33,6 +32,7 @@ import { ChatMessageList } from './components/ChatMessageList';
 import { ChatPageMenuItems } from './components/ChatPageMenuItems';
 import { ChatTitle } from './components/ChatTitle';
 import { Composer } from './components/composer/Composer';
+import { ConversationsManager } from '~/common/chats/ConversationsManager';
 import { ScrollToBottom } from './components/scroll-to-bottom/ScrollToBottom';
 import { ScrollToBottomButton } from './components/scroll-to-bottom/ScrollToBottomButton';
 import { getInstantAppChatPanesCount, usePanesManager } from './components/panes/usePanesManager';
@@ -96,7 +96,7 @@ export function AppChat() {
   } = usePanesManager();
 
   const chatHandlers = React.useMemo(() => chatPanes.map(pane => {
-    return pane.conversationId ? ConversationManager.getHandler(pane.conversationId) : null;
+    return pane.conversationId ? ConversationsManager.getHandler(pane.conversationId) : null;
   }), [chatPanes]);
 
   const {
@@ -167,7 +167,8 @@ export function AppChat() {
       if (chatCommand && chatCommand.type === 'cmd') {
         switch (chatCommand.providerId) {
           case 'ass-beam':
-            return ConversationManager.getHandler(conversationId).beamStore.create(history);
+            Object.assign(lastMessage, { text: chatCommand.params || '' });
+            return ConversationsManager.getHandler(conversationId).beamOpen(history);
 
           case 'ass-browse':
             setMessages(conversationId, history);
@@ -222,7 +223,7 @@ export function AppChat() {
           return await runAssistantUpdatingState(conversationId, history, chatLLMId, conversationSystemPurposeId, getUXLabsHighPerformance() ? 0 : getInstantAppChatPanesCount());
 
         case 'generate-text-beam':
-          return ConversationManager.getHandler(conversationId).beamStore.create(history);
+          return ConversationsManager.getHandler(conversationId).beamOpen(history);
 
         case 'append-user':
           return setMessages(conversationId, history);
@@ -559,11 +560,12 @@ export function AppChat() {
             {/* Best-Of Mode */}
             {!!_paneChatHandler && (
               <BeamView
+                key={`beam-${_paneConversationId}` /* used to invalidate state when switching chats */}
                 conversationHandler={_paneChatHandler}
                 isMobile={isMobile}
                 sx={{
                   overflowY: 'auto',
-                  backgroundColor: 'background.level2',
+                  backgroundColor: 'background.level1',
                   // bgcolor: `rgba(${theme.vars.palette.neutral.lightChannel} / 0.9)`,
                   // backdropFilter: 'blur(6px)',
                   position: 'absolute',

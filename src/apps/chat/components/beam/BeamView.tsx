@@ -1,26 +1,48 @@
 import * as React from 'react';
 import { keyframes } from '@emotion/react';
+import { useShallow } from 'zustand/react/shallow';
 
 import type { SxProps } from '@mui/joy/styles/types';
-import { Alert, Box, Button, Sheet, Typography } from '@mui/joy';
+import { Alert, Box, Button, Sheet } from '@mui/joy';
 
-import { ConversationHandler } from '~/common/chats/ConversationHandler';
-import { useBeam } from '~/common/chats/BeamStore';
+import type { ConversationHandler } from '~/common/chats/ConversationHandler';
+import { useBeamStore } from '~/common/chats/store-beam';
 import { useLLMSelect } from '~/common/components/forms/useLLMSelect';
 
+import { BeamHeader } from './BeamHeader';
+import { BeamRay } from './BeamRay';
+import { ChatMessageMemo } from '../message/ChatMessage';
 
-export const animationEnter = keyframes`
+
+// component configuration
+const MIN_RAY_COUNT = 2;
+const MAX_RAY_COUNT = 8;
+
+
+const animationEnter = keyframes`
     0% {
-        opacity: 0;
-        transform: translateY(8px);
-        scale: 0.9;
+        //opacity: 0;
+        //transform: translateY(8px);
+        scale: 1.1;
+        //rotate: -5deg;
     }
     100% {
         opacity: 1;
         transform: translateY(0);
         scale: 1;
+        rotate: 0;
     }
 `;
+
+
+const chatMessageSx: SxProps = {
+  border: '1px solid',
+  borderColor: 'neutral.outlinedBorder',
+  borderRadius: 'lg',
+  // borderBottomRightRadius: 0,
+  boxShadow: 'sm',
+} as const;
+
 
 export function BeamView(props: {
   conversationHandler: ConversationHandler,
@@ -28,149 +50,131 @@ export function BeamView(props: {
   sx?: SxProps
 }) {
 
+  const { conversationHandler } = props;
+
   // state
-  const { config, candidates } = useBeam(props.conversationHandler);
+  const { isOpen, inputHistory, configIssue, gatherLlmId, setMergedLlmId, raysCount } = useBeamStore(conversationHandler,
+    useShallow((state) => ({
+      isOpen: state.isOpen,
+      inputHistory: state.inputHistory,
+      configIssue: state.configIssue,
+      gatherLlmId: state.gatherLlmId,
+      setMergedLlmId: state.setMergedLlmId,
+      raysCount: state.rays.length,
+    })),
+  );
 
   // external state
-  const [allChatLlm, allChatLlmComponent] = useLLMSelect(true, 'Beam LLM');
+  const [allChatLlm, allChatLlmComponent] = useLLMSelect(gatherLlmId, setMergedLlmId, props.isMobile ? '' : 'Beam Model');
 
-  const handleClose = React.useCallback(() => {
-    props.conversationHandler.beamStore.destroy();
-  }, [props.conversationHandler.beamStore]);
+  // derived state
+  const lastMessage = inputHistory?.slice(-1)[0] || null;
 
-  if (!config)
+
+  const handleCloseKeepRunning = React.useCallback(() => {
+    conversationHandler.beamClose();
+  }, [conversationHandler]);
+
+  const handleSetBeamCount = React.useCallback((n: number) => {
+    conversationHandler.beamSetRayCount(n);
+  }, [conversationHandler]);
+
+
+  const handleStart = React.useCallback(() => {
+    console.log('Start');
+    // beamStore.destroy();
+  }, []);
+
+
+  // change beam count
+
+  const bootup = !raysCount;
+  React.useEffect(() => {
+    bootup && handleSetBeamCount(MIN_RAY_COUNT);
+  }, [bootup, handleSetBeamCount]);
+
+  // const beamCount = candidates.length;
+  //
+  // const handleSetBeamCount = React.useCallback((n: number) => {
+  //   beamStore.setBeamCount(n);
+  // }, [beamStore]);
+  //
+  // const handleIncrementBeamCount = React.useCallback(() => {
+  //   beamStore.appendBeam();
+  // }, [beamStore]);
+
+
+  if (!isOpen)
     return null;
 
-  const lastMessage = config.history.slice(-1)[0] ?? null;
 
   return (
     <Box sx={{
+      '--Pad': { xs: '1rem', md: '1.5rem', xl: '1.5rem' },
+      '--Pad_2': 'calc(var(--Pad) / 2)',
       ...props.sx,
 
       // animation
-      animation: `${animationEnter} 0.42s cubic-bezier(.17,.84,.44,1)`,
+      animation: `${animationEnter} 0.2s cubic-bezier(.17,.84,.44,1)`,
 
       // layout
       display: 'flex',
       flexDirection: 'column',
-      gap: 2,
-      px: { xs: 1, md: 2 },
+      gap: 'var(--Pad)',
     }}>
 
       {/* Issues */}
-      {!!config.configError && (
-        <Alert>
-          {config.configError}
-        </Alert>
+      {!!configIssue && <Alert>{configIssue}</Alert>}
+
+      {/* Header */}
+      <BeamHeader
+        isMobile={props.isMobile}
+        rayCount={raysCount}
+        setRayCount={handleSetBeamCount}
+        llmSelectComponent={allChatLlmComponent}
+        onStart={handleCloseKeepRunning}
+      />
+
+      {/* Last message */}
+      {!!lastMessage && (
+        <Box sx={{
+          px: 'var(--Pad)',
+          display: 'grid',
+          gap: 'var(--Pad_2)',
+        }}>
+          <ChatMessageMemo message={lastMessage} fitScreen={props.isMobile} sx={chatMessageSx} />
+        </Box>
       )}
 
-      {/* Models,  [x] all same, */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'start', gap: 2 }}>
-        <Box sx={{ minWidth: 200 }}>
-          {allChatLlmComponent}
+      {/* Rays */}
+      {!!raysCount && (
+        <Box sx={{
+          // style
+          mx: 'var(--Pad)',
+
+          // layout
+          display: 'grid',
+          gridTemplateColumns: props.isMobile ? 'repeat(auto-fit, minmax(320px, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+          gap: { xs: 2, md: 2 },
+        }}>
+          {Array.from({ length: raysCount }, (_, idx) => (
+            <BeamRay
+              key={'ray-' + idx}
+              conversationHandler={conversationHandler}
+              index={idx}
+              isMobile={props.isMobile}
+              gatherLlmId={gatherLlmId}
+            />
+          ))}
         </Box>
+      )}
 
-        {!!lastMessage && (
-          <Box sx={{
-            backgroundColor: 'background.surface',
-            boxShadow: 'xs',
-            borderRadius: 'lg',
-            borderTopRightRadius: 0,
-            borderTopLeftRadius: 0,
-            py: 1,
-            px: 1,
-            mb: 'auto',
-
-
-            flex: 1,
-          }}>
-            {lastMessage.text}
-          </Box>
-          // <ChatMessageMemo
-          //   message={lastMessage}
-          //   fitScreen={props.isMobile}
-          //   sx={{
-          //     borderRadius: 'lg',
-          //     borderBottomRightRadius: lastMessage.role === 'assistant' ? undefined : 0,
-          //     borderBottomLeftRadius: lastMessage.role === 'user' ? undefined : 0,
-          //     boxShadow: 'xs',
-          //     my: 2,
-          //     px: 0,
-          //     py: 1,
-          //     alignSelf: 'self-end',
-          //     flex: 1,
-          //     maxHeight: '5rem',
-          //     overflow: 'hidden',
-          //   }}
-          // />
-        )}
-      </Box>
-
-      {/* Grid */}
-      <Box sx={{
-        // my: 'auto',
-        // display: 'flex', flexDirection: 'column', alignItems: 'center',
-        border: '1px solid purple',
-        minHeight: '300px',
-
-        // layout
-        display: 'grid',
-        gridTemplateColumns: props.isMobile ? 'repeat(auto-fit, minmax(320px, 1fr))' : 'repeat(auto-fit, minmax(400px, 1fr))',
-        gap: { xs: 2, md: 2 },
-      }}>
-        <Sheet sx={{ minHeight: '50%' }}>
-          b
-        </Sheet>
-        <Sheet>
-          a
-        </Sheet>
-        <Sheet>
-          a
-        </Sheet>
-        <Sheet>
-          a
-        </Sheet>
-        <Sheet>
-          a
-        </Sheet>
-        <Sheet>
-          a
-        </Sheet>
-      </Box>
-
-      {/* Auto-Gatherer: All-in-one, Best-Of */}
-      <Box>
-        Gatherer
-      </Box>
-
-
-      <Box sx={{ flex: 1 }}>
-        <Typography level='body-sm' sx={{ whiteSpace: 'break-spaces' }}>
-          {/*{JSON.stringify(config, null, 2)}*/}
-        </Typography>
-      </Box>
-
-      <Box sx={{
-        height: '100%',
-        borderRadius: 'lg',
-        borderBottomLeftRadius: 0,
-        backgroundColor: 'background.surface',
-        boxShadow: 'lg',
-        m: 2,
-        p: '0.25rem 1rem',
-      }}>
-
-      </Box>
-
-      <Box>
-        a
-      </Box>
-
-      <Box sx={{ mt: 'auto', display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'space-between' }}>
-        <Button aria-label='Close Best-Of' variant='solid' color='neutral' onClick={handleClose} sx={{ ml: 'auto', minWidth: 100 }}>
+      {/* Bottom Bar */}
+      <Sheet sx={{ mt: 'auto', p: 'var(--Pad)', display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+        <Button variant='solid' color='neutral' onClick={handleCloseKeepRunning} sx={{ ml: 'auto', minWidth: 100 }}>
           Close
         </Button>
-      </Box>
+      </Sheet>
 
     </Box>
   );
