@@ -1,12 +1,11 @@
 import * as React from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { createStore } from 'zustand/vanilla';
-import { useStore } from 'zustand';
+import { type StoreApi, useStore } from 'zustand';
 
 import type { DLLMId } from '~/modules/llms/store-llms';
 
 import type { DMessage } from '~/common/state/store-chats';
-
-import { ConversationHandler } from './ConversationHandler';
 
 
 // Per-Beam Store
@@ -19,49 +18,71 @@ interface BeamState {
 
   isOpen: boolean;
   inputHistory: DMessage[] | null;
+  gatherLlmId: DLLMId | null;
   configIssue: string | null;
 
-  gatherLlmId: DLLMId | null;
   rays: DBeam[];
 
 }
 
 export interface BeamStore extends BeamState {
 
-  open: (history: DMessage[]) => void;
+  open: (history: DMessage[], inheritLlmId: DLLMId | null) => void;
   close: () => void;
 
-  setMergedLlmId: (llmId: DLLMId | null) => void;
+  setGatherLlmId: (llmId: DLLMId | null) => void;
+  setRayCount: (count: number) => void;
 
-  setRayCount(count: number): void;
-
-  updateRay(index: number, update: Partial<DBeam>): void;
+  updateRay: (index: number, update: Partial<DBeam>) => void;
 
 }
 
+export type BeamStoreApi = Readonly<StoreApi<BeamStore>>;
 
-export const createBeamStore = (initialLlmId: DLLMId | null) => createStore<BeamStore>()(
+
+export const createBeamStore = () => createStore<BeamStore>()(
   (_set, _get) => ({
 
+    debugId: uuidv4(),
     isOpen: false,
     inputHistory: null,
+    gatherLlmId: null,
     configIssue: null,
 
-    gatherLlmId: initialLlmId,
     rays: [],
 
-    open: (history: DMessage[]) => {
-      const isValidHistory = history.length > 0 && history[history.length - 1].role === 'user';
+
+    open: (history: DMessage[], inheritLlmId: DLLMId | null) => {
+      const { isOpen: wasOpen, close } = _get();
+
+      // reset pending operations
+      close();
+
+      // if just opened, update the model with the current chat model
+      const gatherLlmId = !wasOpen && inheritLlmId;
+
+      // validate history
+      const isValidHistory = history.length >= 1 && history[history.length - 1].role === 'user';
+
       _set({
         isOpen: true,
         inputHistory: isValidHistory ? history : null,
+        ...(gatherLlmId ? { gatherLlmId } : {}),
         configIssue: isValidHistory ? null : 'Invalid history',
       });
     },
 
-    close: () => _get().isOpen && _set({ isOpen: false, inputHistory: null, configIssue: null }),
+    close: () => _get().isOpen && _set({
+      isOpen: false,
+      inputHistory: null,
+      configIssue: null,
+      // gatherLlmId: null,   // remember the selected llm
+      // rays: [],            // remember the rays configuration
+    }),
 
-    setMergedLlmId: (llmId: DLLMId | null) => _set({ gatherLlmId: llmId }),
+    setGatherLlmId: (llmId: DLLMId | null) => _set({
+      gatherLlmId: llmId,
+    }),
 
     setRayCount: (count: number) => {
       const { rays } = _get();
@@ -82,13 +103,11 @@ export const createBeamStore = (initialLlmId: DLLMId | null) => createStore<Beam
 );
 
 
-export const useBeamStore = <T, >(conversationHandler: ConversationHandler, selector: (store: BeamStore) => T): T =>
-  useStore(conversationHandler.getBeamStore(), selector);
+export const useBeamStore = <T, >(beamStore: BeamStoreApi, selector: (store: BeamStore) => T): T =>
+  useStore(beamStore, selector);
 
 
-export const useBeamStoreBeam = (conversationHandler: ConversationHandler, beamIndex: number) => {
-  const _beamStore = conversationHandler.getBeamStore();
-
+export const useBeamStoreBeam = (_beamStore: BeamStoreApi, beamIndex: number) => {
   const beam: DBeam | null = useStore(_beamStore, (store) => store.rays[beamIndex] ?? null);
 
   const setRayLlmId = React.useCallback((llmId: DLLMId | null) => {

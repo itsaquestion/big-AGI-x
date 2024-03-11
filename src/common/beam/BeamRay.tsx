@@ -2,23 +2,25 @@ import * as React from 'react';
 
 import type { SxProps } from '@mui/joy/styles/types';
 import { Box, IconButton, styled, Tooltip } from '@mui/joy';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import LinkIcon from '@mui/icons-material/Link';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
 
+import { ChatMessageMemo } from '../../apps/chat/components/message/ChatMessage';
+
 import type { DLLMId } from '~/modules/llms/store-llms';
-import { ConversationHandler } from '~/common/chats/ConversationHandler';
+
 import { createDMessage } from '~/common/state/store-chats';
-import { useBeamStoreBeam } from '~/common/chats/store-beam';
 import { useLLMSelect } from '~/common/components/forms/useLLMSelect';
 
-import { ChatMessageMemo } from '../message/ChatMessage';
+import { BeamStoreApi, useBeamStoreBeam } from './store-beam';
 
 
 const rayCardClasses = {
   active: 'beamRay-Active',
 } as const;
 
-const RayCard = styled(Box)(({ theme }) => ({
+export const RayCard = styled(Box)(({ theme }) => ({
   '--Card-padding': '1rem',
 
   padding: 'var(--Card-padding)',
@@ -40,27 +42,24 @@ const RayCard = styled(Box)(({ theme }) => ({
 RayCard.displayName = 'RayCard';
 
 
-const chatMessageSx: SxProps = {
-  p: 0,
-  m: 0,
+const chatMessageEmbeddedSx: SxProps = {
+  // style: to undo the style of ChatMessage
   border: 'none',
-  // border: '1px solid',
-  // borderColor: 'neutral.outlinedBorder',
-  // borderRadius: 'lg',
-  // borderBottomRightRadius: 0,
-  // boxShadow: 'sm',
+  m: 0,
+  px: 0,
+  py: 0,
 } as const;
 
 
 export function BeamRay(props: {
-  conversationHandler: ConversationHandler
+  beamStore: BeamStoreApi,
   index: number,
   isMobile: boolean,
   gatherLlmId: DLLMId | null,
 }) {
 
   // external state
-  const { beam, setRayLlmId, clearRayLlmId } = useBeamStoreBeam(props.conversationHandler, props.index);
+  const { beam, setRayLlmId, clearRayLlmId } = useBeamStoreBeam(props.beamStore, props.index);
 
   const isLinked = !!props.gatherLlmId && !beam.scatterLlmId;
 
@@ -71,24 +70,33 @@ export function BeamRay(props: {
     true,
   );
 
-  const msg = React.useMemo(() => createDMessage('assistant', 'test'), []);
+  const msg = React.useMemo(() => createDMessage('assistant', '💫 ...'), []);
 
   return (
     <RayCard>
 
       {/* Controls Row */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <IconButton disabled size='sm' sx={undefined /*{ ml: 'calc(-0.5 * var(--Card-padding))' }*/}>
+          <DragIndicatorIcon />
+        </IconButton>
         <Box sx={{ flex: 1 }}>
           {allChatLlmComponent}
         </Box>
         <Tooltip title={isLinked ? undefined : 'Link Model'}>
-          <IconButton disabled={isLinked} onClick={clearRayLlmId}>
+          <IconButton disabled={isLinked} size='sm' onClick={clearRayLlmId}>
             {isLinked ? <LinkIcon /> : <LinkOffIcon />}
           </IconButton>
         </Tooltip>
       </Box>
 
-      <ChatMessageMemo message={msg} fitScreen={props.isMobile} sx={chatMessageSx} />
+      <ChatMessageMemo
+        message={msg}
+        fitScreen={props.isMobile}
+        showAvatar={false}
+        adjustContentScaling={-1}
+        sx={chatMessageEmbeddedSx}
+      />
 
     </RayCard>
   );
