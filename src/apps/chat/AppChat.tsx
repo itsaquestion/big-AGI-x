@@ -11,7 +11,7 @@ import { imaginePromptFromText } from '~/modules/aifn/imagine/imaginePromptFromT
 import { speakText } from '~/modules/elevenlabs/elevenlabs.client';
 import { useCapabilityTextToImage } from '~/modules/t2i/t2i.client';
 
-import { Beam } from '~/common/beam/Beam';
+import { BeamView } from '~/common/beam/BeamView';
 import { Brand } from '~/common/app.config';
 import { ConfirmationModal } from '~/common/components/ConfirmationModal';
 import { GlobalShortcutItem, ShortcutKeyName, useGlobalShortcuts } from '~/common/components/useGlobalShortcut';
@@ -559,19 +559,14 @@ export function AppChat() {
             </ScrollToBottom>
 
             {!!_paneChatBeamStore && (
-              <Beam
-                // key={`beam-${_paneConversationId}` /* used to invalidate state when switching chats */}
-                // conversationHandler={_paneChatHandler}
+              <BeamView
                 beamStore={_paneChatBeamStore}
                 isMobile={isMobile}
                 sx={{
-                  overflowY: 'auto',
                   backgroundColor: 'background.level1',
-                  // backgroundColor: `rgba(${theme.vars.palette.neutral.lightChannel} / 0.9)`,
-                  // backdropFilter: 'blur(6px)',
                   position: 'absolute',
                   inset: 0,
-                  zIndex: 1, // stay on top of Chips :shrug:
+                  zIndex: 10, // stay on top of Message > Chips (:1), and Overlays (:2) :shrug:
                 }}
               />
             )}
@@ -602,7 +597,7 @@ export function AppChat() {
       onTextImagine={handleTextImagine}
       setIsMulticast={setIsComposerMulticast}
       sx={{
-        zIndex: 21, // position: 'sticky', bottom: 0,
+        zIndex: 51, // just to allocate a surface, and potentially have a shadow
         backgroundColor: themeBgAppChatComposer,
         borderTop: `1px solid`,
         borderTopColor: 'divider',

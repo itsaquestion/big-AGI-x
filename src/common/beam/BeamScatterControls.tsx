@@ -1,44 +1,55 @@
 import * as React from 'react';
 
+import type { SxProps } from '@mui/joy/styles/types';
 import { Box, Button, ButtonGroup, FormControl, Typography } from '@mui/joy';
+import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
+import StopRoundedIcon from '@mui/icons-material/StopRounded';
 
 import { FormLabelStart } from '~/common/components/forms/FormLabelStart';
+import { animationEnterBelow } from '~/common/util/animUtils';
 
 
-export function BeamHeader(props: {
+export const beamControlsSx: SxProps = {
+  // style
+  // borderRadius: 'md',
+  // backgroundColor: 'background.popup',
+  backgroundColor: 'background.surface',
+  boxShadow: 'md',
+  p: 'var(--Pad)',
+  zIndex: 1, // stay on top of messages, for shadow to cast on it
+};
+
+const beamScatterControlsSx: SxProps = {
+  ...beamControlsSx,
+
+  // layout: max 2 cols (/3 with gap) of min 200px per col
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(max(200px, 100%/4), 1fr))',
+  gridAutoFlow: 'row dense',
+  gap: 'var(--Pad_2)',
+
+  // '& > *': { border: '1px solid red' },
+}
+
+
+export function BeamScatterControls(props: {
   isMobile: boolean,
   llmComponent: React.ReactNode,
   rayCount: number,
   setRayCount: (n: number) => void,
+  startEnabled: boolean,
+  startBusy: boolean
   onStart: () => void,
+  onStop: () => void,
 }) {
 
   return (
-    <Box
-      // variant='outlined'
-      sx={{
-        // style
-        // borderRadius: 'md',
-        // backgroundColor: 'background.popup',
-        backgroundColor: 'background.surface',
-        boxShadow: 'md',
-        p: 'var(--Pad)',
-        zIndex: 1, // stay on top of the user message
-
-        // layout: max 2 cols (/3 with gap) of min 200px per col
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(max(200px, 100%/4), 1fr))',
-        gridAutoFlow: 'row dense',
-        gap: 'var(--Pad_2)',
-
-        // '& > *': { border: '1px solid red' },
-      }}
-    >
+    <Box sx={beamScatterControlsSx}>
 
       {/* Title */}
       <Box sx={{ display: 'flex', gap: 'var(--Pad_2)', my: 'auto' }}>
         {/*<Typography level='h4'>*/}
-        {/*  <ChatBeamIcon sx={{ animation: `${cssRainbowColorKeyframes} 2s linear 2.66` }} />*/}
+        {/*  <ChatBeamIcon sx={{ animation: `${animationColorDarkerRainbow} 2s linear 2.66` }} />*/}
         {/*</Typography>*/}
         <div>
           <Typography level='h4' component='h2'>
@@ -84,15 +95,28 @@ export function BeamHeader(props: {
             })}
           </ButtonGroup>
 
-          {/* Start ... */}
-          <Button
-            variant='solid' color='success'
-            onClick={props.onStart}
-            // endDecorator={<ChatBeamIcon />}
-            sx={{ ml: 'auto', minWidth: 80 }}
-          >
-            Start
-          </Button>
+          {!props.startBusy ? (
+            // Start
+            <Button
+              variant='solid' color='success'
+              disabled={!props.startEnabled || props.startBusy} loading={props.startBusy}
+              endDecorator={<PlayArrowRoundedIcon />}
+              onClick={props.onStart}
+              sx={{ ml: 'auto', minWidth: 80, animation: `${animationEnterBelow} 0.1s ease-out` }}
+            >
+              Start
+            </Button>
+          ) : (
+            // Stop
+            <Button
+              variant='solid' color='danger'
+              endDecorator={<StopRoundedIcon />}
+              onClick={props.onStop}
+              sx={{ ml: 'auto', minWidth: 80, animation: `${animationEnterBelow} 0.1s ease-out` }}
+            >
+              Stop
+            </Button>
+          )}
         </Box>
       </FormControl>
 
