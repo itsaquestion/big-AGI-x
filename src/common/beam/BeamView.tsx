@@ -2,23 +2,17 @@ import * as React from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
 import type { SxProps } from '@mui/joy/styles/types';
-import { Alert, Box, Button, Typography } from '@mui/joy';
-import AddCircleOutlineRoundedIcon from '@mui/icons-material/AddCircleOutlineRounded';
+import { Alert, Box, Typography } from '@mui/joy';
 
 import { ChatMessageMemo } from '../../apps/chat/components/message/ChatMessage';
 
 import { animationEnterScaleUp } from '~/common/util/animUtils';
 import { useLLMSelect } from '~/common/components/forms/useLLMSelect';
 
-import { BeamGatherControls } from './BeamGatherControls';
-import { BeamRay, RayCard } from './BeamRay';
-import { BeamScatterControls } from './BeamScatterControls';
-import { BeamStoreApi, useBeamStore } from './store-beam';
-
-
-// component configuration
-const MIN_RAY_COUNT = 2;
-const MAX_RAY_COUNT = 8;
+import { BeamPaneGather } from './BeamPaneGather';
+import { BeamPaneScatter } from './BeamPaneScatter';
+import { BeamRayGrid, DEF_RAY_COUNT, MIN_RAY_COUNT } from './BeamRayGrid';
+import { BeamStoreApi, useBeamStore } from './store-beam.hooks';
 
 
 const userMessageSx: SxProps = {
@@ -55,23 +49,12 @@ const assistantMessageSx: SxProps = {
 export function BeamView(props: {
   beamStore: BeamStoreApi,
   isMobile: boolean,
-  sx?: SxProps,
-}) {
-
-  // external state
-  const isOpen = useBeamStore(props.beamStore, state => state.isOpen);
-
-  return isOpen ? <BeamViewBase {...props} /> : null;
-}
-
-
-function BeamViewBase(props: {
-  beamStore: BeamStoreApi,
-  isMobile: boolean,
   sx?: SxProps
 }) {
 
   // linked state
+  const rayIds = useBeamStore(props.beamStore, useShallow(state => state.rays.map(ray => ray.rayId)));
+  const raysCount = rayIds.length;
   const {
     inputHistory, inputIssues,
     gatherLlmId, gatherMessage,
@@ -88,8 +71,6 @@ function BeamViewBase(props: {
     readyGather: state.readyGather,
     isGathering: state.isGathering,
   })));
-  const rayIds = useBeamStore(props.beamStore, useShallow(state => state.rays.map(ray => ray.rayId)));
-  const raysCount = rayIds.length;
   const { close: beamClose, setRayCount, startScatteringAll, stopScatteringAll, setGatherLlmId } = props.beamStore.getState();
   const [_gatherLlm, gatherLlmComponent] = useLLMSelect(gatherLlmId, setGatherLlmId, props.isMobile ? '' : 'Beam Model');
 
@@ -105,10 +86,10 @@ function BeamViewBase(props: {
 
   // runnning
 
-  // [effect] start with 2 rays
+  // [effect] pre-populate a default number of rays
   const bootup = raysCount < MIN_RAY_COUNT;
   React.useEffect(() => {
-    bootup && handleRaySetCount(MIN_RAY_COUNT);
+    bootup && handleRaySetCount(DEF_RAY_COUNT);
   }, [bootup, handleRaySetCount]);
 
 
@@ -116,10 +97,11 @@ function BeamViewBase(props: {
   const otherHistoryCount = Math.max(0, (inputHistory?.length || 0) - 1);
   const isFirstMessageSystem = inputHistory?.[0]?.role === 'system';
 
+
   const userMessageDecorator = React.useMemo(() => {
     return (otherHistoryCount >= 1) ? (
-      <Typography level='body-xs' sx={{ lineHeight: '3rem', opacity: 0.5 }}>
-        {otherHistoryCount === 1 ? (isFirstMessageSystem ? '1 system message' : '1 message') : `${otherHistoryCount} messages`} above
+      <Typography level='body-xs' sx={{ my: 1.5, opacity: 0.8 }}>
+        {otherHistoryCount === 1 ? (isFirstMessageSystem ? '1 system message' : '1 message') : `${otherHistoryCount} messages`} before
       </Typography>
     ) : null;
   }, [isFirstMessageSystem, otherHistoryCount]);
@@ -133,9 +115,12 @@ function BeamViewBase(props: {
       // enter animation
       animation: `${animationEnterScaleUp} 0.2s cubic-bezier(.17,.84,.44,1)`,
 
-      // layout
+      // scrollable layout
+      overflowY: 'auto',
       display: 'flex',
       flexDirection: 'column',
+      gap: 'var(--Pad)',
+      pb: 'var(--Pad)',
 
       ...props.sx,
     }}>
@@ -143,103 +128,65 @@ function BeamViewBase(props: {
       {/* Config Issues */}
       {!!inputIssues && <Alert>{inputIssues}</Alert>}
 
+      {/* Scatter Controls */}
+      <BeamPaneScatter
+        isMobile={props.isMobile}
+        llmComponent={gatherLlmComponent}
+        rayCount={raysCount}
+        setRayCount={handleRaySetCount}
+        startEnabled={readyScatter}
+        startBusy={isScattering}
+        onStart={startScatteringAll}
+        onStop={stopScatteringAll}
+      />
 
-      {/* Scrollable Layout (Scatter and Rays and Gather message) */}
-      <Box sx={{
-        flex: 1,
-        overflowY: 'auto',
-
-        // scrollable layout
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 'var(--Pad)',
-        pb: 'var(--Pad)',
-      }}>
-
-        {/* Scatter Controls */}
-        <BeamScatterControls
-          isMobile={props.isMobile}
-          llmComponent={gatherLlmComponent}
-          rayCount={raysCount}
-          setRayCount={handleRaySetCount}
-          startEnabled={readyScatter}
-          startBusy={isScattering}
-          onStart={startScatteringAll}
-          onStop={stopScatteringAll}
-        />
-
-        {/* User Message */}
-        {!!lastMessage && (
-          <Box sx={{
-            px: 'var(--Pad)',
-            mt: 'calc(-1 * var(--Pad))',
-          }}>
-            <ChatMessageMemo
-              message={lastMessage}
-              fitScreen={props.isMobile}
-              showAvatar={false}
-              adjustContentScaling={-1}
-              topDecorator={userMessageDecorator}
-              sx={userMessageSx}
-            />
-          </Box>
-        )}
-
-        {/* Rays Grid */}
+      {/* User Message */}
+      {!!lastMessage && (
         <Box sx={{
-          mx: 'var(--Pad)',
-          mb: 'auto',
-          display: 'grid',
-          gridTemplateColumns: props.isMobile ? 'repeat(auto-fit, minmax(320px, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
-          gap: 'var(--Pad)',
+          px: 'var(--Pad)',
+          mt: 'calc(-1 * var(--Pad))',
         }}>
-
-          {rayIds.map((rayId) => (
-            <BeamRay
-              key={'ray-' + rayId}
-              beamStore={props.beamStore}
-              rayId={rayId}
-              isMobile={props.isMobile}
-              gatherLlmId={gatherLlmId}
-            />
-          ))}
-
-          {/* Add Ray */}
-          {raysCount < MAX_RAY_COUNT && (
-            <RayCard sx={{ mb: 'auto' }}>
-              <Button variant='plain' color='neutral' onClick={handleRayIncreaseCount} sx={{
-                margin: 'calc(-1 * var(--Card-padding) + 0.25rem)',
-                minHeight: 'calc(2 * var(--Card-padding) + 2rem - 0.5rem)',
-              }}>
-                <AddCircleOutlineRoundedIcon />
-              </Button>
-            </RayCard>
-          )}
-
+          <ChatMessageMemo
+            message={lastMessage}
+            fitScreen={props.isMobile}
+            showAvatar={false}
+            adjustContentScaling={-1}
+            topDecorator={userMessageDecorator}
+            sx={userMessageSx}
+          />
         </Box>
+      )}
 
-        {/* Gather Message */}
-        {(!!gatherMessage && !!gatherMessage.updated) && (
-          <Box sx={{
-            px: 'var(--Pad)',
-            mb: 'calc(-1 * var(--Pad))',
-          }}>
-            <ChatMessageMemo
-              message={gatherMessage}
-              fitScreen={props.isMobile}
-              showAvatar={false}
-              adjustContentScaling={-1}
-              sx={assistantMessageSx}
-            />
-          </Box>
-        )}
+      {/* Rays Grid */}
+      <BeamRayGrid
+        beamStore={props.beamStore}
+        gatherLlmId={gatherLlmId}
+        isMobile={props.isMobile}
+        rayIds={rayIds}
+        onIncreaseRayCount={handleRayIncreaseCount}
+      />
 
-      </Box>
+      {/* Gather Message */}
+      {(!!gatherMessage && !!gatherMessage.updated) && (
+        <Box sx={{
+          px: 'var(--Pad)',
+          mb: 'calc(-1 * var(--Pad))',
+        }}>
+          <ChatMessageMemo
+            message={gatherMessage}
+            fitScreen={props.isMobile}
+            showAvatar={false}
+            adjustContentScaling={-1}
+            sx={assistantMessageSx}
+          />
+        </Box>
+      )}
 
       {/* Gather Controls */}
-      <BeamGatherControls
+      <BeamPaneGather
         isMobile={props.isMobile}
-        gatherEnabled={true}
+        gatherCount={readyGather}
+        gatherEnabled={readyGather > 0 && !isScattering}
         gatherBusy={false}
         onStart={() => null}
         onStop={() => null}

@@ -8,6 +8,8 @@ import StopRoundedIcon from '@mui/icons-material/StopRounded';
 import { FormLabelStart } from '~/common/components/forms/FormLabelStart';
 import { animationEnterBelow } from '~/common/util/animUtils';
 
+import { CONTROLS_RAY_PRESETS } from './BeamRayGrid';
+
 
 export const beamControlsSx: SxProps = {
   // style
@@ -29,10 +31,10 @@ const beamScatterControlsSx: SxProps = {
   gap: 'var(--Pad_2)',
 
   // '& > *': { border: '1px solid red' },
-}
+};
 
 
-export function BeamScatterControls(props: {
+export function BeamPaneScatter(props: {
   isMobile: boolean,
   llmComponent: React.ReactNode,
   rayCount: number,
@@ -58,7 +60,8 @@ export function BeamScatterControls(props: {
           </Typography>
 
           <Typography level='body-sm'>
-            Combine the smarts of models
+            Explore the solution space
+            {/*Combine the smarts of models*/}
           </Typography>
         </div>
       </Box>
@@ -75,7 +78,7 @@ export function BeamScatterControls(props: {
 
           {/* xN buttons */}
           <ButtonGroup variant='outlined' sx={{ flex: 1, display: 'flex', '& > *': { flex: 1 } }}>
-            {[2, 4, 8].map((n) => {
+            {CONTROLS_RAY_PRESETS.map((n) => {
               const isActive = n === props.rayCount;
               return (
                 <Button

@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 import { createStore } from 'zustand/vanilla';
-import { type StoreApi, useStore } from 'zustand';
 
 import { streamAssistantMessage } from '../../apps/chat/editors/chat-stream';
 
@@ -62,7 +61,8 @@ function rayScatterStart(ray: DRay, onlyIdle: boolean, beamStore: BeamStore): DR
     message: {
       ...ray.message,
       ...update,
-      updated: Date.now(),
+      // only update the timestamp when the text changes
+      ...(update.text ? { updated: Date.now() } : {}),
     },
   }));
 
@@ -91,7 +91,8 @@ function rayScatterStart(ray: DRay, onlyIdle: boolean, beamStore: BeamStore): DR
     message: {
       ...ray.message,
       text: PLACEHOLDER_SCATTER_TEXT,
-      updated: Date.now(),
+      created: Date.now(),
+      updated: null,
     },
     scatterLlmId: rayLlmId,
     scatterIssue: undefined,
@@ -134,20 +135,21 @@ interface BeamState {
   inputHistory: DMessage[] | null;
   inputIssues: string | null;
 
+  rays: DRay[];
+
   gatherLlmId: DLLMId | null;
   gatherMessage: DMessage | null;
   gatherAbortController: AbortController | null;
 
-  rays: DRay[];
+  readyScatter: boolean; // true if the input is valid
+  isScattering: boolean; // true if any ray is scattering at the moment
 
-  readyScatter: boolean;
-  isScattering: boolean;
-  readyGather: boolean;
+  readyGather: number;   // 0, or number of the rays that are ready to gather
   isGathering: boolean;
 
 }
 
-interface BeamStore extends BeamState {
+export interface BeamStore extends BeamState {
 
   open: (history: DMessage[], inheritLlmId: DLLMId | null) => void;
   close: () => void;
@@ -167,8 +169,6 @@ interface BeamStore extends BeamState {
 
 }
 
-export type BeamStoreApi = Readonly<StoreApi<BeamStore>>;
-
 
 export const createBeamStore = () => createStore<BeamStore>()(
   (_set, _get) => ({
@@ -180,13 +180,13 @@ export const createBeamStore = () => createStore<BeamStore>()(
     isOpen: false,
     inputHistory: null,
     inputIssues: null,
+    rays: [],
     gatherLlmId: null,
     gatherMessage: null,
     gatherAbortController: null,
-    rays: [],
     readyScatter: false,
     isScattering: false,
-    readyGather: false,
+    readyGather: 0,
     isGathering: false,
 
 
@@ -221,13 +221,17 @@ export const createBeamStore = () => createStore<BeamStore>()(
         isOpen: false,
         inputHistory: null,
         inputIssues: null,
+
+        rays: prevRays.map((ray) => createDRay(ray.scatterLlmId)), // remember only the model configuration
+
         // gatherLlmId: null,   // remember the selected llm
         gatherMessage: null,
         gatherAbortController: null,
-        rays: prevRays.map((ray) => createDRay(ray.scatterLlmId /* remember only the model configuration */)),
+
         readyScatter: false,
         isScattering: false,
-        readyGather: false,
+
+        readyGather: 0,
         isGathering: false,
       });
     },
@@ -246,7 +250,7 @@ export const createBeamStore = () => createStore<BeamStore>()(
         });
       } else if (count > rays.length) {
         _set({
-          rays: [...rays, ...Array(count - rays.length).fill(null).map(() => createDRay(_get().gatherLlmId))],
+          rays: [...rays, ...Array(count - rays.length).fill(null).map(() => createDRay(null))],
         });
       }
       syncRaysStateToBeam();
@@ -331,12 +335,9 @@ export const createBeamStore = () => createStore<BeamStore>()(
 
       _set({
         isScattering: hasRays && !allDone,
+        readyGather: raysReady,
       });
     },
 
   }),
 );
-
-
-export const useBeamStore = <T, >(beamStore: BeamStoreApi, selector: (store: BeamStore) => T): T =>
-  useStore(beamStore, selector);
