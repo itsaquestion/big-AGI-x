@@ -10,6 +10,7 @@ import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
 import ReplayRoundedIcon from '@mui/icons-material/ReplayRounded';
 import StopRoundedIcon from '@mui/icons-material/StopRounded';
+import TelegramIcon from '@mui/icons-material/Telegram';
 
 import { ChatMessageMemo } from '../../apps/chat/components/message/ChatMessage';
 
@@ -19,7 +20,7 @@ import { GoodTooltip } from '~/common/components/GoodTooltip';
 import { useLLMSelect } from '~/common/components/forms/useLLMSelect';
 
 import { BeamStoreApi, useBeamStore } from './store-beam.hooks';
-import { rayIsError, rayIsScattering, rayIsSelectable, rayIsUserSelected } from './store-beam';
+import { rayIsError, rayIsImported, rayIsScattering, rayIsSelectable, rayIsUserSelected } from './store-beam';
 
 
 // component configuration
@@ -58,6 +59,18 @@ export const RayCard = styled(Box)(({ theme }) => ({
 RayCard.displayName = 'RayCard';
 
 
+/*const letterSx: SxProps = {
+  width: '1rem',
+  py: 0.25,
+  fontSize: 'xs',
+  backgroundColor: 'background.popup',
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 'xs',
+  textAlign: 'center',
+};*/
+
+
 function rayCardStatusSx(isError: boolean, isSelectable: boolean, isSelected: boolean): SxProps | null {
   if (isError)
     return { backgroundColor: 'danger.softBg', borderColor: 'danger.outlinedBorder' };
@@ -72,9 +85,10 @@ function rayCardStatusSx(isError: boolean, isSelectable: boolean, isSelected: bo
 const RayControlsMemo = React.memo(RayControls);
 
 function RayControls(props: {
+  // rayIndex: number
   isEmpty: boolean,
   isLlmLinked: boolean,
-  isRemovable: boolean
+  isRemovable: boolean,
   isScattering: boolean,
   llmComponent: React.ReactNode,
   onLink: () => void,
@@ -89,6 +103,10 @@ function RayControls(props: {
         <DragIndicatorIcon sx={{ fontSize: 'xl', my: 'auto' }} />
       </div>
     )}
+
+    {/*<Box sx={letterSx}>*/}
+    {/*  {String.fromCharCode(65 + props.rayIndex)}*/}
+    {/*</Box>*/}
 
     <Box sx={{ flex: 1 }}>
       {props.llmComponent}
@@ -141,6 +159,7 @@ const chatMessageEmbeddedSx: SxProps = {
 export function BeamRay(props: {
   beamStore: BeamStoreApi,
   rayId: string,
+  // rayIndex: number,
   isMobile: boolean,
   isRemovable: boolean
   gatherLlmId: DLLMId | null,
@@ -154,6 +173,8 @@ export function BeamRay(props: {
   const isScattering = rayIsScattering(ray);
   const isSelectable = rayIsSelectable(ray);
   const isSelected = rayIsUserSelected(ray);
+  const isImported = rayIsImported(ray);
+  const showUseButton = isSelectable && !isScattering;
   const { removeRay, toggleScattering, setRayLlmId } = props.beamStore.getState();
 
   const isLlmLinked = !!props.gatherLlmId && !ray?.scatterLlmId;
@@ -164,6 +185,15 @@ export function BeamRay(props: {
 
 
   // handlers
+
+  const handleRayUse = React.useCallback(() => {
+    // get snapshot values, so we don't have to react to the hook
+    const { rays, onSuccessCallback } = props.beamStore.getState();
+    const ray = rays.find(ray => ray.rayId === props.rayId);
+    if (ray?.message?.text && onSuccessCallback) {
+      onSuccessCallback(ray.message.text, llmId || '');
+    }
+  }, [llmId, props.beamStore, props.rayId]);
 
   const handleRayRemove = React.useCallback(() => {
     removeRay(props.rayId);
@@ -192,6 +222,7 @@ export function BeamRay(props: {
 
       {/* Controls Row */}
       <RayControlsMemo
+        // rayIndex={props.rayIndex}
         isEmpty={!isSelectable}
         isLlmLinked={isLlmLinked}
         isRemovable={props.isRemovable}
@@ -220,6 +251,30 @@ export function BeamRay(props: {
             adjustContentScaling={-1}
             sx={chatMessageEmbeddedSx}
           />
+        </Box>
+      )}
+
+      {/* Use Ray */}
+      {showUseButton && (
+        <Box sx={{ mt: 'auto', mb: -1, mr: -1, placeSelf: 'end', height: 'calc(2.5rem - var(--Pad_2))', position: 'relative' }}>
+          <GoodTooltip title='Choose this message'>
+            <IconButton
+              size='sm'
+              variant='plain'
+              color='success'
+              disabled={isImported || isScattering}
+              onClick={handleRayUse}
+              sx={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                fontSize: 'xs',
+                px: isImported ? 1 : undefined,
+              }}
+            >
+              {ray?.imported ? 'Original' : /*'Use'*/ <TelegramIcon />}
+            </IconButton>
+          </GoodTooltip>
         </Box>
       )}
 

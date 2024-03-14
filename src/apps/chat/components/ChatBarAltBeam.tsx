@@ -5,22 +5,57 @@ import { Box, Typography } from '@mui/joy';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 
 import { BeamStoreApi, useBeamStore } from '~/common/beam/store-beam.hooks';
+import { ConfirmationModal } from '~/common/components/ConfirmationModal';
+import { GoodTooltip } from '~/common/components/GoodTooltip';
+import { KeyStroke } from '~/common/components/KeyStroke';
+import { ShortcutKeyName, useGlobalShortcut } from '~/common/components/useGlobalShortcut';
+import { animationColorBeamGather, animationColorBeamScatter, animationEnterBelow } from '~/common/util/animUtils';
 
 import { FadeInButton } from './ChatDrawerItem';
-import { animationColorBeamGather, animationColorBeamScatter, animationEnterBelow } from '~/common/util/animUtils';
 
 
 export function ChatBarAltBeam(props: {
   beamStore: BeamStoreApi,
 }) {
 
-  const { closebeam, isScattering, isGathering } = useBeamStore(props.beamStore, useShallow((store) => ({
+  // state
+  const [showCloseConfirmation, setShowCloseConfirmation] = React.useState(false);
+
+
+  // external beam state
+  const { isScattering, isGathering, readyGather, terminateBeam } = useBeamStore(props.beamStore, useShallow((store) => ({
     // state
     isScattering: store.isScattering,
     isGathering: store.isGathering,
+    readyGather: store.readyGather, // Assuming this state exists and is a number
     // actions
-    closebeam: store.close,
+    terminateBeam: store.terminate,
   })));
+
+
+  // closure handlers
+
+  const requiresConfirmation = isScattering || isGathering || readyGather > 0;
+  const handleCloseBeam = React.useCallback(() => {
+    if (requiresConfirmation)
+      setShowCloseConfirmation(true);
+    else
+      terminateBeam();
+  }, [requiresConfirmation, terminateBeam]);
+
+  const handleCloseConfirmation = React.useCallback(() => {
+    terminateBeam();
+    setShowCloseConfirmation(false);
+  }, [terminateBeam]);
+
+  const handleCloseDenial = React.useCallback(() => {
+    setShowCloseConfirmation(false);
+  }, []);
+
+
+  // intercept esc this beam is focused
+  useGlobalShortcut(ShortcutKeyName.Esc, false, false, false, handleCloseBeam);
+
 
   return (
     <Box sx={{ display: 'flex', gap: { xs: 1, md: 3 }, alignItems: 'center' }}>
@@ -40,10 +75,24 @@ export function ChatBarAltBeam(props: {
         {(!isGathering && !isScattering) && ' Mode'}
       </Typography>
 
-      <FadeInButton aria-label='Close' size='sm' onClick={closebeam}>
-        <CloseRoundedIcon />
-      </FadeInButton>
+      <GoodTooltip usePlain title={<Box sx={{ p: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>Close Beam Mode <KeyStroke combo='Esc' /></Box>}>
+        <FadeInButton aria-label='Close' size='sm' onClick={handleCloseBeam}>
+          <CloseRoundedIcon />
+        </FadeInButton>
+      </GoodTooltip>
 
+      {/* Confirmation Modal */}
+      {showCloseConfirmation && (
+        <ConfirmationModal
+          open
+          onClose={handleCloseDenial}
+          onPositive={handleCloseConfirmation}
+          lowStakes
+          noTitleBar
+          confirmationText='Are you sure you want to close Beam Mode? Unsaved text will be lost.'
+          positiveActionText='Yes, close'
+        />
+      )}
     </Box>
   );
 }

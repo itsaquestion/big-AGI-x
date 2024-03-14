@@ -11,7 +11,7 @@ import { useLLMSelect } from '~/common/components/forms/useLLMSelect';
 
 import { BeamPaneGather } from './BeamPaneGather';
 import { BeamPaneScatter } from './BeamPaneScatter';
-import { BeamRayGrid, DEF_RAY_COUNT, MIN_RAY_COUNT } from './BeamRayGrid';
+import { BeamRayGrid, DEF_RAY_COUNT } from './BeamRayGrid';
 import { BeamStoreApi, useBeamStore } from './store-beam.hooks';
 
 
@@ -22,7 +22,8 @@ const userMessageSx: SxProps = {
   borderTop: 'none',
   borderTopLeftRadius: 0,
   borderTopRightRadius: 0,
-  px: '0.5rem',
+  // px: '0.5rem',
+  pr: '0.125rem',
   // boxShadow: 'sm',
   // the following make it end-aligned
   // borderBottomRightRadius: 0,
@@ -52,6 +53,9 @@ export function BeamView(props: {
   sx?: SxProps
 }) {
 
+  // state
+  const [showHistoryMessage, setShowHistoryMessage] = React.useState(true);
+
   // linked state
   const rayIds = useBeamStore(props.beamStore, useShallow(state => state.rays.map(ray => ray.rayId)));
   const raysCount = rayIds.length;
@@ -71,13 +75,13 @@ export function BeamView(props: {
     readyGather: state.readyGather,
     isGathering: state.isGathering,
   })));
-  const { close: beamClose, setRayCount, startScatteringAll, stopScatteringAll, setGatherLlmId } = props.beamStore.getState();
+  const { editHistoryMessage, setRayCount, startScatteringAll, stopScatteringAll, setGatherLlmId, terminate } = props.beamStore.getState();
   const [_gatherLlm, gatherLlmComponent] = useLLMSelect(gatherLlmId, setGatherLlmId, props.isMobile ? '' : 'Beam Model');
 
 
   // configuration
 
-  const handleBeamDispose = React.useCallback(() => beamClose(), [beamClose]);
+  const handleTerminate = React.useCallback(() => terminate(), [terminate]);
 
   const handleRaySetCount = React.useCallback((n: number) => setRayCount(n), [setRayCount]);
 
@@ -87,24 +91,23 @@ export function BeamView(props: {
   // runnning
 
   // [effect] pre-populate a default number of rays
-  const bootup = raysCount < MIN_RAY_COUNT;
+  const bootup = raysCount < DEF_RAY_COUNT;
   React.useEffect(() => {
     bootup && handleRaySetCount(DEF_RAY_COUNT);
   }, [bootup, handleRaySetCount]);
 
 
   const lastMessage = inputHistory?.slice(-1)[0] || null;
+
   const otherHistoryCount = Math.max(0, (inputHistory?.length || 0) - 1);
   const isFirstMessageSystem = inputHistory?.[0]?.role === 'system';
-
-
   const userMessageDecorator = React.useMemo(() => {
-    return (otherHistoryCount >= 1) ? (
-      <Typography level='body-xs' sx={{ my: 1.5, opacity: 0.8 }}>
-        {otherHistoryCount === 1 ? (isFirstMessageSystem ? '1 system message' : '1 message') : `${otherHistoryCount} messages`} before
+    return (otherHistoryCount >= 1 && showHistoryMessage) ? (
+      <Typography level='body-xs' sx={{ my: 1.5, opacity: 0.9 }} onClick={() => setShowHistoryMessage(on => !on)}>
+        ... {otherHistoryCount === 1 ? (isFirstMessageSystem ? '1 system message' : '1 message') : `${otherHistoryCount} messages`} before ...
       </Typography>
     ) : null;
-  }, [isFirstMessageSystem, otherHistoryCount]);
+  }, [isFirstMessageSystem, otherHistoryCount, showHistoryMessage]);
 
 
   return (
@@ -149,9 +152,10 @@ export function BeamView(props: {
           <ChatMessageMemo
             message={lastMessage}
             fitScreen={props.isMobile}
-            showAvatar={false}
+            showAvatar={true}
             adjustContentScaling={-1}
             topDecorator={userMessageDecorator}
+            onMessageEdit={editHistoryMessage}
             sx={userMessageSx}
           />
         </Box>
@@ -190,7 +194,7 @@ export function BeamView(props: {
         gatherBusy={false}
         onStart={() => null}
         onStop={() => null}
-        onClose={handleBeamDispose}
+        onClose={handleTerminate}
       />
 
     </Box>
