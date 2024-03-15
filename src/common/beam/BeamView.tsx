@@ -8,11 +8,13 @@ import { ChatMessageMemo } from '../../apps/chat/components/message/ChatMessage'
 
 import { animationEnterScaleUp } from '~/common/util/animUtils';
 import { useLLMSelect } from '~/common/components/forms/useLLMSelect';
+import { useUICounter } from '~/common/state/store-ui';
 
 import { BeamPaneGather } from './BeamPaneGather';
 import { BeamPaneScatter } from './BeamPaneScatter';
 import { BeamRayGrid, DEF_RAY_COUNT } from './BeamRayGrid';
 import { BeamStoreApi, useBeamStore } from './store-beam.hooks';
+import { BeamExplainer } from './BeamExplainer';
 
 
 const userMessageSx: SxProps = {
@@ -50,13 +52,15 @@ const assistantMessageSx: SxProps = {
 export function BeamView(props: {
   beamStore: BeamStoreApi,
   isMobile: boolean,
-  sx?: SxProps
+  showExplainer?: boolean,
+  sx?: SxProps,
 }) {
 
   // state
   const [showHistoryMessage, setShowHistoryMessage] = React.useState(true);
 
   // linked state
+  const { novel: explainerUnseen, touch: explainerCompleted, forget: explainerShow } = useUICounter('beam-wizard');
   const rayIds = useBeamStore(props.beamStore, useShallow(state => state.rays.map(ray => ray.rayId)));
   const raysCount = rayIds.length;
   const {
@@ -76,7 +80,7 @@ export function BeamView(props: {
     isGathering: state.isGathering,
   })));
   const { editHistoryMessage, setRayCount, startScatteringAll, stopScatteringAll, setGatherLlmId, terminate } = props.beamStore.getState();
-  const [_gatherLlm, gatherLlmComponent] = useLLMSelect(gatherLlmId, setGatherLlmId, props.isMobile ? '' : 'Beam Model');
+  const [_gatherLlm, gatherLlmComponent] = useLLMSelect(gatherLlmId, setGatherLlmId, props.isMobile ? '' : 'Beam and Merge Model');
 
 
   // configuration
@@ -109,10 +113,12 @@ export function BeamView(props: {
     ) : null;
   }, [isFirstMessageSystem, otherHistoryCount, showHistoryMessage]);
 
+  if (props.showExplainer && explainerUnseen)
+    return <BeamExplainer onWizardComplete={explainerCompleted} sx={props.sx} />;
 
   return (
     <Box sx={{
-      '--Pad': { xs: '1rem', md: '1.5rem', xl: '1.5rem' },
+      '--Pad': { xs: '1rem', md: '1.5rem' },
       '--Pad_2': 'calc(var(--Pad) / 2)',
 
       // enter animation
@@ -141,6 +147,7 @@ export function BeamView(props: {
         startBusy={isScattering}
         onStart={startScatteringAll}
         onStop={stopScatteringAll}
+        onExplainerShow={explainerShow}
       />
 
       {/* User Message */}
