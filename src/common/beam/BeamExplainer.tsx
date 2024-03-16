@@ -21,8 +21,6 @@ const beamSteps: ExplainerPage[] = [
 
 Your journey to brilliance continues. Unlock the power of **Beaming** to explore vast possibilities and **Merge** to crystalize your vision.
 
-![big-AGI BEAM Rays](https://raw.githubusercontent.com/enricoros/big-AGI/main/public/images/explainers/explainer-beam-scatter-830px-alpha.png)
-
 **BEAM** is where ideas flourish. Welcome to the future of creativity. 
 
 **Let's begin.**
@@ -35,6 +33,8 @@ Your journey to brilliance continues. Unlock the power of **Beaming** to explore
     titleSuffix: ': Exploration',
     mdContent: `
 **Beam** allows you to run multiple AI models in parallel, exploring the solution space from different points of view.
+
+![big-AGI BEAM Rays](https://raw.githubusercontent.com/enricoros/big-AGI/main/public/images/explainers/explainer-beam-scatter-1200px-alpha.png)
 
 1. Reach closer to your goal, faster
 2. Tap into multiple AI perspectives at once
@@ -62,6 +62,8 @@ Your journey to brilliance continues. Unlock the power of **Beaming** to explore
 1. Combine insights into one solution
 2. Leverage the collective wisdom of AI
 
+![big-AGI BEAM Rays](https://raw.githubusercontent.com/enricoros/big-AGI/main/public/images/explainers/explainer-beam-gather-1600px-alpha.png)
+
 #### How to Merge:
 Utilizes all the remaining Beam responses and allows you to choose how to fuse them.
 
@@ -79,9 +81,9 @@ Utilizes all the remaining Beam responses and allows you to choose how to fuse t
   {
     stepDigits: '',
     stepName: 'Tips',
-    titleSuffix: 'Effectiveness Tips',
+    titleSuffix: 'Effectiveness Tips', //  · N × GPT-4 -> GPT-5
     mdContent: `
-#### Human-in-the-loop · N × GPT-4 -> GPT-5
+#### Human as a Judge
 You, the user, provide creative direction and final judgement. The AI models are powerful tools that generate drafts for you to quickly evaluate and refine.
 There are profound reasons why this approach works, which we explore [in our blog](https://big-agi.com/blog/introducing-beam).
 
@@ -129,8 +131,10 @@ export function BeamExplainer(props: {
         steps={beamSteps}
         footer={
           <Typography level='body-xs' sx={{ textAlign: 'center', maxWidth: '400px', mx: 'auto' }}>
-            The journey from exploration to refinement is iterative.
-            Each cycle sharpens your ideas, bringing you closer to innovation.
+            Unlock beaming, combine AI wisdom, achieve clarity.
+            {/*Discover, Design and Dream.*/}
+            {/*The journey from exploration to refinement is iterative.*/}
+            {/*Each cycle sharpens your ideas, bringing you closer to innovation.*/}
           </Typography>
         }
         onFinished={props.onWizardComplete}
