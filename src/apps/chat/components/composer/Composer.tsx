@@ -23,17 +23,19 @@ import type { LLMOptionsOpenAI } from '~/modules/llms/vendors/openai/openai.vend
 import { useBrowseCapability } from '~/modules/browse/store-module-browsing';
 
 import { ChatBeamIcon } from '~/common/components/icons/ChatBeamIcon';
-import { conversationTitle, DConversationId, getConversation, useChatStore } from '~/common/state/store-chats';
 import { PreferencesTab, useOptimaLayout } from '~/common/layout/optima/useOptimaLayout';
 import { SpeechResult, useSpeechRecognition } from '~/common/components/useSpeechRecognition';
 import { animationEnterBelow } from '~/common/util/animUtils';
+import { conversationTitle, DConversationId, getConversation, useChatStore } from '~/common/state/store-chats';
 import { countModelTokens } from '~/common/util/token-counter';
 import { isMacUser } from '~/common/util/pwaUtils';
 import { launchAppCall } from '~/common/app.routes';
 import { lineHeightTextareaMd } from '~/common/app.theme';
+import { platformAwareKeystrokes } from '~/common/components/KeyStroke';
 import { playSoundUrl } from '~/common/util/audioUtils';
 import { supportsClipboardRead } from '~/common/util/clipboardUtils';
 import { supportsScreenCapture } from '~/common/util/screenCaptureUtils';
+import { useAppStateStore } from '~/common/state/store-appstate';
 import { useDebouncer } from '~/common/components/useDebouncer';
 import { useGlobalShortcut } from '~/common/components/useGlobalShortcut';
 import { useUICounter, useUIPreferencesStore } from '~/common/state/store-ui';
@@ -115,7 +117,10 @@ export function Composer(props: {
     labsAttachScreenCapture: state.labsAttachScreenCapture,
     labsCameraDesktop: state.labsCameraDesktop,
   }), shallow);
+  const timeToShowTips = useAppStateStore(state => state.usageCount > 2);
   const { novel: explainShiftEnter, touch: touchShiftEnter } = useUICounter('composer-shift-enter');
+  const { novel: explainAltEnter, touch: touchAltEnter } = useUICounter('composer-alt-enter');
+  const { novel: explainCtrlEnter, touch: touchCtrlEnter } = useUICounter('composer-ctrl-enter');
   const [startupText, setStartupText] = useComposerStartupText();
   const enterIsNewline = useUIPreferencesStore(state => state.enterIsNewline);
   const chatMicTimeoutMs = useChatMicTimeoutMsValue();
@@ -297,12 +302,14 @@ export function Composer(props: {
 
       // Alt (Windows) or Option (Mac) + Enter: append the message instead of sending it
       if (e.altKey) {
+        touchAltEnter();
         handleSendAction('append-user', composeText);
         return e.preventDefault();
       }
 
       // Ctrl (Windows) or Command (Mac) + Enter: send for beaming
       if ((isMacUser && e.metaKey && !e.ctrlKey) || (!isMacUser && e.ctrlKey && !e.metaKey)) {
+        touchCtrlEnter();
         handleSendAction('generate-text-beam', composeText);
         return e.preventDefault();
       }
@@ -317,7 +324,7 @@ export function Composer(props: {
       }
     }
 
-  }, [actileInterceptKeydown, assistantAbortible, chatModeId, composeText, enterIsNewline, handleSendAction, touchShiftEnter]);
+  }, [actileInterceptKeydown, assistantAbortible, chatModeId, composeText, enterIsNewline, handleSendAction, touchAltEnter, touchCtrlEnter, touchShiftEnter]);
 
 
   // Focus mode
@@ -517,8 +524,15 @@ export function Composer(props: {
           : props.isDeveloperMode ? 'Chat with me' + (isDesktop ? ' · drop source' : '') + ' · attach code...'
             : props.capabilityHasT2I ? 'Chat · /beam · /draw · drop files...'
               : 'Chat · /react · drop files...';
-  if (isDesktop && explainShiftEnter)
-    textPlaceholder += !enterIsNewline ? '\nShift+Enter to add a new line' : '\nShift+Enter to send';
+  if (isDesktop && timeToShowTips) {
+    if (explainShiftEnter)
+      textPlaceholder += !enterIsNewline ? '\n\n💡 Shift + Enter to add a new line' : '\n\n💡 Shift + Enter to send';
+    else if (explainAltEnter)
+      textPlaceholder += platformAwareKeystrokes('\n\n💡 Tip: Alt + Enter to just append the message');
+    // 1.15.0: enable this
+    // else if (explainCtrlEnter)
+    //   textPlaceholder += platformAwareKeystrokes('\n\n💡 Tip: Ctrl + Enter to beam');
+  }
 
   return (
     <Box aria-label='User Message' component='section' sx={props.sx}>
