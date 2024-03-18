@@ -6,6 +6,7 @@ import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 
 import { FormLabelStart } from '~/common/components/forms/FormLabelStart';
+import { ScrollToBottomButton } from '~/common/scroll-to-bottom/ScrollToBottomButton';
 
 import { beamControlsSx } from './BeamPaneScatter';
 
@@ -16,6 +17,10 @@ const beamGatherControlsSx: SxProps = {
   // style
   borderTop: '1px solid',
   borderTopColor: 'neutral.outlinedBorder',
+
+  // the fact that this works, means we got the CSS and layout right
+  position: 'sticky',
+  bottom: 0,
 
   // layout
   display: 'flex',
@@ -45,6 +50,9 @@ export function BeamPaneGather(props: {
         {/*<Typography level='h4'>*/}
         {/*  <ChatBeamIcon sx={{ animation: `${animationColorDarkerRainbow} 2s linear 2.66` }} />*/}
         {/*</Typography>*/}
+        <Box sx={{ my: 'auto' }}>
+          <ScrollToBottomButton inline />
+        </Box>
         <div>
           <Typography level='h4' component='h2'>
             <AutoAwesomeOutlinedIcon sx={{ fontSize: '1rem' }} /> Merge
