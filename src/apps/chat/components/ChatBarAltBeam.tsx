@@ -3,14 +3,14 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { Box, IconButton, Typography } from '@mui/joy';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
-import MaximizeRoundedIcon from '@mui/icons-material/MaximizeRounded';
+import FullscreenRoundedIcon from '@mui/icons-material/FullscreenRounded';
 
 import { BeamStoreApi, useBeamStore } from '~/common/beam/store-beam.hooks';
 import { ConfirmationModal } from '~/common/components/ConfirmationModal';
 import { GoodTooltip } from '~/common/components/GoodTooltip';
 import { KeyStroke } from '~/common/components/KeyStroke';
 import { ShortcutKeyName, useGlobalShortcut } from '~/common/components/useGlobalShortcut';
-import { animationColorBeamGather, animationColorBeamScatter, animationEnterBelow } from '~/common/util/animUtils';
+import { animationBackgroundBeamGather, animationColorBeamScatterINV, animationEnterBelow } from '~/common/util/animUtils';
 
 
 export function ChatBarAltBeam(props: {
@@ -66,13 +66,10 @@ export function ChatBarAltBeam(props: {
     <Box sx={{ display: 'flex', gap: { xs: 1, md: 3 }, alignItems: 'center' }}>
 
       {/* [desktop] maximize button, or a disabled spacer  */}
-      {props.isMobile ? (
-        // <ChatBeamIcon sx={{ fontSize: 'md' }} />
-        <IconButton size='sm' disabled />
-      ) : (
+      {props.isMobile ? null : (
         <GoodTooltip title='Maximize'>
           <IconButton size='sm' onClick={handleMaximizeBeam}>
-            <MaximizeRoundedIcon />
+            <FullscreenRoundedIcon />
           </IconButton>
         </GoodTooltip>
       )}
@@ -82,8 +79,8 @@ export function ChatBarAltBeam(props: {
         <Box
           component='span'
           sx={
-            isGathering ? { animation: `${animationColorBeamGather} 3s infinite, ${animationEnterBelow} 0.6s`, px: 1.5, py: 0.5 }
-              : isScattering ? { animation: `${animationColorBeamScatter} 5s infinite, ${animationEnterBelow} 0.6s` }
+            isGathering ? { animation: `${animationBackgroundBeamGather} 3s infinite, ${animationEnterBelow} 0.6s`, px: 1.5, py: 0.5 }
+              : isScattering ? { animation: `${animationColorBeamScatterINV} 5s infinite, ${animationEnterBelow} 0.6s` }
                 : { fontWeight: 'lg' }
           }>
           {isGathering ? 'Merging...' : isScattering ? 'Beaming...' : 'Beam'}
