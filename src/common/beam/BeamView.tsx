@@ -8,8 +8,7 @@ import { useLLMSelect } from '~/common/components/forms/useLLMSelect';
 import { useUICounter } from '~/common/state/store-ui';
 
 import { BeamExplainer } from './BeamExplainer';
-import { BeamGatherOutput } from './gather/BeamGatherOutput';
-import { BeamGatherConfig } from './gather/BeamGatherConfig';
+import { BeamGatherInput } from './gather/BeamGatherInput';
 import { BeamGatherPane } from './gather/BeamGatherPane';
 import { BeamRayGrid } from './scatter/BeamRayGrid';
 import { BeamScatterInput } from './scatter/BeamScatterInput';
@@ -29,16 +28,16 @@ export function BeamView(props: {
   const {
     /* root */ editInputHistoryMessage,
     /* scatter */ setRayCount, startScatteringAll, stopScatteringAll,
-    /* gather */ setFusionIndex, setFusionLlmId, startFusion, stopFusion,
+    /* gather */ setFusionIndex, toggleGatherShowPrompts, setFusionLlmId, fusionStart, fusionStop,
   } = props.beamStore.getState();
   const {
     /* root */ inputHistory, inputIssues, inputReady,
     /* scatter */ isScattering, raysReady,
-    /* gather */ fusionIndex, fusionLlmId, isGathering,
+    /* gather */ fusionIndex, gatherShowPrompts, fusionLlmId, isGathering,
   } = useBeamStore(props.beamStore, useShallow(state => ({
     inputHistory: state.inputHistory, inputIssues: state.inputIssues, inputReady: state.inputReady,
     isScattering: state.isScattering, raysReady: state.raysReady,
-    fusionIndex: state.fusionIndex, fusionLlmId: state.fusionLlmId, isGathering: state.isGathering,
+    fusionIndex: state.fusionIndex, gatherShowPrompts: state.gatherShowPrompts, fusionLlmId: state.fusionLlmId, isGathering: state.isGathering,
   })));
   const rayIds = useBeamStore(props.beamStore, useShallow(state => state.rays.map(ray => ray.rayId)));
   const [_, gatherLlmComponent, gatherLlmIcon] = useLLMSelect(fusionLlmId, setFusionLlmId, props.isMobile ? '' : 'Merge Model', true);
@@ -125,23 +124,25 @@ export function BeamView(props: {
 
 
         {/* Fusion Config */}
-        <BeamGatherConfig
+        <BeamGatherInput
           beamStore={props.beamStore}
-          isMobile={props.isMobile}
+          gatherShowPrompts={gatherShowPrompts}
         />
 
         {/* Gather Controls */}
         <BeamGatherPane
-          gatherLlmComponent={gatherLlmComponent}
-          gatherLlmIcon={gatherLlmIcon}
-          gatherBusy={isGathering}
-          gatherCount={raysReady}
-          gatherEnabled={raysReady > 0 && !isGathering && fusionIndex !== null}
           isMobile={props.isMobile}
           fusionIndex={fusionIndex}
           setFusionIndex={setFusionIndex}
-          onStartFusion={startFusion}
-          onStopFusion={stopFusion}
+          gatherBusy={isGathering}
+          gatherCount={raysReady}
+          gatherEnabled={raysReady > 0 && !isGathering && fusionIndex !== null}
+          gatherLlmComponent={gatherLlmComponent}
+          gatherLlmIcon={gatherLlmIcon}
+          gatherShowPrompts={gatherShowPrompts}
+          toggleGatherShowPrompts={toggleGatherShowPrompts}
+          onFusionStart={fusionStart}
+          onFusionStop={fusionStop}
         />
 
         {/* Fusion Output */}
