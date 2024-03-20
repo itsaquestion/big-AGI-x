@@ -10,57 +10,64 @@ import StopRoundedIcon from '@mui/icons-material/StopRounded';
 import { FormLabelStart } from '~/common/components/forms/FormLabelStart';
 import { ScrollToBottomButton } from '~/common/scroll-to-bottom/ScrollToBottomButton';
 import { animationColorBeamGather } from '~/common/util/animUtils';
+import { useScrollToBottom } from '~/common/scroll-to-bottom/useScrollToBottom';
 
-import { BEAM_GATHER_COLOR } from './beam.config';
-import { beamControlsSx } from './BeamPaneScatter';
+import { GATHER_COLOR } from '../beam.config';
+import { beamPaneSx } from '../BeamCard';
+
+import { FUSION_PROGRAMS } from './beam.gather';
 
 
-const beamGatherControlsSx: SxProps = {
-  ...beamControlsSx,
-
-  // style
+const mobileBeamGatherPane: SxProps = {
+  ...beamPaneSx,
   borderTop: '1px solid',
   borderTopColor: 'neutral.outlinedBorder',
 
-  // layout
-  display: 'flex',
-  flexWrap: 'wrap',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  columnGap: 'var(--Pad_2)',
+  // [mobile] larger gap in between rows, as on mobile we have a smaller gap
   rowGap: 'var(--Pad)',
-  py: 'calc(2 * var(--Pad) / 3)',
 };
 
-const desktopBeamControlsSx: SxProps = {
-  ...beamGatherControlsSx,
+const desktopBeamGatherPaneSx: SxProps = {
+  ...beamPaneSx,
+  borderTop: '1px solid',
+  borderTopColor: 'neutral.outlinedBorder',
 
-  // undo the larger mobile padding
-  rowGap: 'var(--Pad_2)',
-
-  // the fact that this works, means we got the CSS and layout right
+  // [desktop] keep visible at the bottom
   position: 'sticky',
   bottom: 0,
 };
 
 
-export function BeamPaneGather(props: {
-  gatherBusy: boolean,
-  gatherCount: number
-  gatherEnabled: boolean,
+export function BeamGatherPane(props: {
   isMobile: boolean,
-  mergeLlmComponent: React.ReactNode,
-  mergeLlmVendorIcon?: React.FunctionComponent<SvgIconProps>,
-  onStart: () => void,
-  onStop: () => void,
-  onClose: () => void,
+  gatherBusy: boolean,
+  gatherCount: number,
+  gatherEnabled: boolean,
+  gatherLlmComponent: React.ReactNode,
+  gatherLlmIcon?: React.FunctionComponent<SvgIconProps>,
+  fusionIndex: number | null,
+  setFusionIndex: (index: number | null) => void
+  onStartFusion: () => void,
+  onStopFusion: () => void,
 }) {
-  const { gatherCount, gatherEnabled, gatherBusy } = props;
 
-  const Icon = props.mergeLlmVendorIcon || (gatherBusy ? AutoAwesomeIcon : AutoAwesomeOutlinedIcon);
+  // external state
+  const { setStickToBottom } = useScrollToBottom();
+
+  // derived state
+  const { gatherCount, gatherEnabled, gatherBusy, setFusionIndex } = props;
+
+  const handleFusionActivate = React.useCallback((idx: number, shiftPressed: boolean) => {
+    setStickToBottom(true);
+    setFusionIndex((idx !== props.fusionIndex || !shiftPressed) ? idx : null);
+  }, [props.fusionIndex, setFusionIndex, setStickToBottom]);
+
+
+  const Icon = props.gatherLlmIcon || (gatherBusy ? AutoAwesomeIcon : AutoAwesomeOutlinedIcon);
+
 
   return (
-    <Box sx={props.isMobile ? beamGatherControlsSx : desktopBeamControlsSx}>
+    <Box sx={props.isMobile ? mobileBeamGatherPane : desktopBeamGatherPaneSx}>
 
 
       {/* Title */}
@@ -80,54 +87,41 @@ export function BeamPaneGather(props: {
       <FormControl sx={{ my: '-0.25rem' }}>
         <FormLabelStart title={<><AutoAwesomeOutlinedIcon sx={{ fontSize: 'md', mr: 0.5 }} />Method</>} sx={{ mb: '0.25rem' /* orig: 6px */ }} />
         <ButtonGroup variant='outlined'>
-          {['Guided', 'Auto'].map((n, idx) => {
-            const isActive = idx === 0; //fasn === props.rayCount;
+          {FUSION_PROGRAMS.map((fusion, idx) => {
+            const isActive = idx === props.fusionIndex;
             return (
               <Button
-                key={n}
-                color={isActive ? BEAM_GATHER_COLOR : 'neutral'}
+                key={'gather-method-' + idx}
+                color={isActive ? GATHER_COLOR : 'neutral'}
+                onClick={event => handleFusionActivate(idx, !!event?.shiftKey)}
                 // size='sm'
                 sx={{
                   // backgroundColor: isActive ? 'background.popup' : undefined,
-                  backgroundColor: isActive ? `${BEAM_GATHER_COLOR}.softBg` : 'background.popup',
+                  backgroundColor: isActive ? `${GATHER_COLOR}.softBg` : 'background.popup',
                   fontWeight: isActive ? 'xl' : 400, /* reset, from 600 */
-                  // width: '3.125rem',
                   // minHeight: '2.25rem',
                 }}
               >
-                {n}
+                {fusion.label}
               </Button>
             );
           })}
         </ButtonGroup>
       </FormControl>
 
-      {/* Method (Radio)*/}
-      {/*<FormControl>*/}
-      {/*  <FormLabelStart title={<><AutoAwesomeRoundedIcon sx={{ fontSize: 'md', mr: 0.5 }} />Method</>} sx={{ mb: '0.25rem' /* orig: 6px } />*!/*/}
-      {/*  <RadioGroup orientation={props.isMobile ? 'vertical' : 'horizontal'}>*/}
-      {/*    <Radio color={BEAM_GATHER_COLOR} value='one' label='Guided' />*/}
-      {/*    <Radio color={BEAM_GATHER_COLOR} value='many' label={<Typography>Fusion</Typography>} />*/}
-      {/*    /!*<Radio value='one' label={<Typography startDecorator={<AutoAwesomeRoundedIcon />}>Chooose</Typography>} />*!/*/}
-      {/*    /!*<Radio value='many' label={<Typography startDecorator={<AutoAwesomeRoundedIcon />}>Improve</Typography>} />*!/*/}
-      {/*    /!*<Radio value='all' label={<Typography startDecorator={<AutoAwesomeRoundedIcon />}>Fuse</Typography>} />*!/*/}
-      {/*    /!*<Radio value='manual' label='Manual' />*!/*/}
-      {/*  </RadioGroup>*/}
-      {/*</FormControl>*/}
-
       {/* LLM */}
       <Box sx={{ my: '-0.25rem', minWidth: 190, maxWidth: 220 }}>
-        {props.mergeLlmComponent}
+        {props.gatherLlmComponent}
       </Box>
 
       {/* Start / Stop buttons */}
       {!gatherBusy ? (
         <Button
           // key='gather-start' // used for animation triggering, which we don't have now
-          variant='solid' color={BEAM_GATHER_COLOR}
+          variant='solid' color={GATHER_COLOR}
           disabled={!gatherEnabled || gatherBusy} loading={gatherBusy}
           endDecorator={<MergeRoundedIcon />}
-          onClick={props.onStart}
+          onClick={props.onStartFusion}
           sx={{ minWidth: 120 }}
         >
           Merge
@@ -137,7 +131,7 @@ export function BeamPaneGather(props: {
           // key='gather-stop'
           variant='solid' color='danger'
           endDecorator={<StopRoundedIcon />}
-          onClick={props.onStop}
+          onClick={props.onStopFusion}
           sx={{ minWidth: 120 }}
         >
           Stop

@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import type { SxProps } from '@mui/joy/styles/types';
-import { Box, IconButton, styled, SvgIconProps } from '@mui/joy';
+import { Box, IconButton, SvgIconProps } from '@mui/joy';
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import LinkIcon from '@mui/icons-material/Link';
@@ -12,7 +12,7 @@ import ReplayRoundedIcon from '@mui/icons-material/ReplayRounded';
 import StopRoundedIcon from '@mui/icons-material/StopRounded';
 import TelegramIcon from '@mui/icons-material/Telegram';
 
-import { ChatMessageMemo } from '../../apps/chat/components/message/ChatMessage';
+import { ChatMessageMemo } from '../../../apps/chat/components/message/ChatMessage';
 
 import type { DLLMId } from '~/modules/llms/store-llms';
 
@@ -20,50 +20,22 @@ import { GoodTooltip } from '~/common/components/GoodTooltip';
 import { InlineError } from '~/common/components/InlineError';
 import { useLLMSelect } from '~/common/components/forms/useLLMSelect';
 
-import { BeamStoreApi, useBeamStore } from './store-beam.hooks';
-import { SCATTER_RAY_SHOW_DRAG_HANDLE } from './beam.config';
-import { rayIsError, rayIsImported, rayIsScattering, rayIsSelectable, rayIsUserSelected } from './beam.rays';
+import { BeamCard, beamCardClasses } from '../BeamCard';
+import { BeamStoreApi, useBeamStore } from '../store-beam.hooks';
+import { SCATTER_RAY_SHOW_DRAG_HANDLE } from '../beam.config';
+
+import { rayIsError, rayIsImported, rayIsScattering, rayIsSelectable, rayIsUserSelected } from './beam.scatter';
 
 
-const rayCardClasses = {
-  errored: 'rayCard-Errored',
-  selectable: 'rayCard-Selectable',
+const chatMessageEmbeddedSx: SxProps = {
+  // style: to undo the style of ChatMessage
+  backgroundColor: 'none',
+  border: 'none',
+  mx: -1.5, // compensates for the marging (e.g. RenderChatText, )
+  my: 0,
+  px: 0,
+  py: 0,
 } as const;
-
-export const RayCard = styled(Box)(({ theme }) => ({
-  '--Card-padding': '1rem',
-
-  backgroundColor: theme.vars.palette.background.surface,
-  border: '1px solid',
-  borderColor: theme.vars.palette.neutral.outlinedBorder,
-  borderRadius: theme.radius.md,
-
-  padding: 'var(--Card-padding)',
-
-  // [`&.${rayCardClasses.active}`]: {
-  //   boxShadow: 'inset 0 0 0 2px #00f, inset 0 0 0 4px #00a',
-  // },
-
-  [`&.${rayCardClasses.selectable}`]: {
-    backgroundColor: theme.vars.palette.background.popup,
-  },
-  [`&.${rayCardClasses.errored}`]: {
-    backgroundColor: theme.vars.palette.danger.softBg,
-    borderColor: theme.vars.palette.danger.outlinedBorder,
-  },
-
-  position: 'relative',
-
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 'var(--Pad_2)',
-
-  // uncomment the following to limit the card height
-  // maxHeight: 'calc(0.8 * (100dvh - 16rem))',
-  // overflow: 'auto',
-}));
-RayCard.displayName = 'RayCard';
-
 
 /*const letterSx: SxProps = {
   width: '1rem',
@@ -145,17 +117,6 @@ function RayControls(props: {
 }
 
 
-const chatMessageEmbeddedSx: SxProps = {
-  // style: to undo the style of ChatMessage
-  backgroundColor: 'none',
-  border: 'none',
-  mx: -1.5, // compensates for the marging (e.g. RenderChatText, )
-  my: 0,
-  px: 0,
-  py: 0,
-} as const;
-
-
 export function BeamRay(props: {
   beamStore: BeamStoreApi,
   isMobile: boolean,
@@ -208,9 +169,9 @@ export function BeamRay(props: {
 
 
   return (
-    <RayCard
+    <BeamCard
       // onClick={isSelectable ? handleRayToggleSelect : undefined}
-      className={`${isError ? rayCardClasses.errored : ''} ${isSelectable ? rayCardClasses.selectable : ''}`}
+      className={`${isError ? beamCardClasses.errored : ''} ${isSelectable ? beamCardClasses.selectable : ''}`}
     >
 
       {/* Controls Row */}
@@ -267,9 +228,10 @@ export function BeamRay(props: {
                 right: 0,
                 fontSize: 'xs',
                 px: isImported ? 1 : undefined,
+                whiteSpace: 'nowrap',
               }}
             >
-              {ray?.imported ? 'Original' : /*'Use'*/ <TelegramIcon />}
+              {ray?.imported ? 'From Chat' : /*'Use'*/ <TelegramIcon />}
             </IconButton>
           </GoodTooltip>
         </Box>
@@ -286,6 +248,6 @@ export function BeamRay(props: {
           <CheckCircleOutlineRoundedIcon sx={{ fontSize: 'md', color: 'success.solidBg' }} />
         </Box>
       )}
-    </RayCard>
+    </BeamCard>
   );
 }
